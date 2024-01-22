@@ -48,7 +48,7 @@ app.post('/api/update-coors', async (req, res) => {
     }
     const lastcoords = await pool.execute(`
         SELECT * FROM gps ORDER BY id DESC LIMIT 1;
-    `);
+    `) as any;
     const lastcoord = lastcoords[ 0 ][ 0 ] as GPS;
     if (!lastcoord) { 
         await pool.execute(`
@@ -77,7 +77,7 @@ app.get('/api/get-coors', async (req, res) => {
     }
     const coords = await pool.execute(`
         SELECT * FROM gps ORDER BY id DESC LIMIT 1;
-    `);
+    `) as any;
     const coord = coords[ 0 ][ 0 ] as GPS;
     res.send({
         latitude: coord.latitude,
