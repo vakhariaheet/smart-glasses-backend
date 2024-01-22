@@ -55,7 +55,9 @@ app.post('/api/update-coors', async (req, res) => {
         await pool.execute(`
             INSERT INTO gps (latitude, longitude, speed, track, glasses_id) VALUES (?, ?, ?, ?, ?);
         `, [ gpsData.latitude, gpsData.longitude, gpsData.speed, gpsData.track, gpsData.glasses_id ]);
-        return;
+        return res.send({
+            message: 'OK'
+        });
     }
     const distance = Math.sqrt(Math.pow(lastcoord.latitude - gpsData.latitude, 2) + Math.pow(lastcoord.longitude - gpsData.longitude, 2));
     if (distance > 0.0001) { 
