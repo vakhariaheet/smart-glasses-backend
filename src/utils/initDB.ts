@@ -6,6 +6,8 @@ const initDB = async (db:Pool) => {
             id INT PRIMARY KEY AUTO_INCREMENT,
             latitude DECIMAL(12,10) NOT NULL,
             longitude DECIMAL(12,10) NOT NULL,
+            speed DECIMAL(12,10) NOT NULL,
+            track DECIMAL(12,10) NOT NULL,
             timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
