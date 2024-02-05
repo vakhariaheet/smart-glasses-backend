@@ -7,7 +7,7 @@ const initDB = async (db: Pool) => {
             latitude DECIMAL(12,10) NOT NULL,
             longitude DECIMAL(12,10) NOT NULL,
             speed DECIMAL(12,10) NOT NULL,
-            track DECIMAL(12,10) NOT NULL,
+            track DECIMAL(12,5) NOT NULL,
             glasses_id INT NOT NULL,
             user_id VARCHAR(255) NOT NULL,
             timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
