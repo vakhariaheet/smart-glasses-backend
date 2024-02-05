@@ -43,16 +43,21 @@ app.get('/', (c) => {
 app.post('/api/update-coors', async (c) => {
     const gpsData = (await c.req.json()) as Omit<Omit<GPS, 'id'>, 'timestamp'> & { code: string };
 
+    console.log(gpsData);
     if (gpsData.code !== process.env.CODE) {
+        console.log(gpsData.code, process.env.CODE);
         return c.json({
             message: 'Invalid code'
         });
+
     }
     const lastcoords = await pool.execute(`
         SELECT * FROM gps ORDER BY userId = ${gpsData.userId} DESC LIMIT 1;
     `) as any;
     const lastcoord = lastcoords[ 0 ][ 0 ] as GPS;
+    console.log(lastcoord);
     if (!lastcoord) {
+        console.log('No last coord');
         await pool.execute(`
             INSERT INTO gps (latitude, longitude, speed, track, glasses_id,userId) VALUES (?, ?, ?, ?, ?);
         `, [ gpsData.latitude, gpsData.longitude, gpsData.speed, gpsData.track, gpsData.glasses_id, gpsData.userId ]);
@@ -60,12 +65,14 @@ app.post('/api/update-coors', async (c) => {
             message: 'OK'
         });
     }
+    console.log(lastcoord.latitude, gpsData.latitude, lastcoord.longitude, gpsData.longitude);
     const distance = Math.sqrt(Math.pow(lastcoord.latitude - gpsData.latitude, 2) + Math.pow(lastcoord.longitude - gpsData.longitude, 2));
     if (distance > 0.0001) {
         await pool.execute(`
             INSERT INTO gps (latitude, longitude, speed, track, glasses_id) VALUES (?, ?, ?, ?, ?);
         `, [ gpsData.latitude, gpsData.longitude, gpsData.speed, gpsData.track, gpsData.glasses_id ]);
     }
+    console.log(distance);
     return c.json({
         message: 'OK'
     });
