@@ -78,7 +78,7 @@ app.post('/api/update-coors', async (c) => {
 })
 
 app.get('/api/get-coors', async (c) => {
-    const { code } = c.req.query() as { code: string };
+    const { code, userId } = c.req.query() as { code: string; userId: string };
     if (code !== process.env.CODE) {
         c.json({
             message: 'Invalid code'
@@ -86,7 +86,7 @@ app.get('/api/get-coors', async (c) => {
         return;
     }
     const coords = await pool.execute(`
-        SELECT * FROM gps ORDER BY id DESC LIMIT 1;
+        SELECT * FROM gps ORDER BY user_id='${userId}' DESC LIMIT 1;
     `) as any;
     const coord = coords[ 0 ][ 0 ] as GPS;
     return c.json(coord, 200);
