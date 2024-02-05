@@ -1,4 +1,4 @@
-export interface GPS{
+export interface GPS {
     id: number;
     latitude: number;
     longitude: number;
@@ -6,5 +6,6 @@ export interface GPS{
     timestamp: number;
     track: number;
     glasses_id: string;
+    userId: string;
 }
 
