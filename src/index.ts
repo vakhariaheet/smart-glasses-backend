@@ -149,6 +149,19 @@ app.get('/api/alleys', async (c) => {
     return c.json(users, 200);
 })
 
+app.post('/api/users', async (c) => {
+    const { userId } = (await c.req.json()) as { userId: string };
+
+    const [ users ] = await pool.execute(`
+        SELECT * FROM users WHERE id IN (SELECT alley_id FROM user_alley WHERE user_id = ?);
+    `, [ userId ]) as any;
+
+
+
+    return c.json(users, 200);
+
+})
+
 console.log(`Server running on port ${PORT} 🚀`);
 export default {
     port: process.env.PORT || PORT,
