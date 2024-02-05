@@ -66,7 +66,7 @@ app.post('/api/update-coors', async (c) => {
             INSERT INTO gps (latitude, longitude, speed, track, glasses_id) VALUES (?, ?, ?, ?, ?);
         `, [ gpsData.latitude, gpsData.longitude, gpsData.speed, gpsData.track, gpsData.glasses_id ]);
     }
-    c.json({
+    return c.json({
         message: 'OK'
     }, 200);
 })
@@ -83,7 +83,7 @@ app.get('/api/get-coors', async (c) => {
         SELECT * FROM gps ORDER BY id DESC LIMIT 1;
     `) as any;
     const coord = coords[ 0 ][ 0 ] as GPS;
-    c.json(coord, 200);
+    return c.json(coord, 200);
 });
 
 app.post('/api/add-alley', async (c) => {
