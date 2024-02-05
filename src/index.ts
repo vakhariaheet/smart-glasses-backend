@@ -1,23 +1,23 @@
 import mysql from 'mysql2/promise';
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
 import { GPS } from '../types';
 import initDB from './utils/initDB';
+import AuthRouter from './routes/auth/Auth';
+// Create an instance of Hono
+const app = new Hono();
+const PORT = process.env.PORT || 3000;
+// Use middleware
+app.use('*', cors(
+    {
+        origin: '*',
+        allowMethods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
 
+    }
+));
+app.use('*', logger());
 
-// Load environment variables
-dotenv.config();
-
-// Create a new Express application
-const app = express();
-const port = process.env.PORT || 3000;
-
-// Enable CORS
-app.use(cors());
-
-// Parse JSON bodies
-app.use(express.json());
 
 // Create a connection pool
 const pool = mysql.createPool({
@@ -27,70 +27,124 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME,
     port: Number(process.env.DB_PORT),
 });
-(async () => { 
+(async () => {
     initDB(pool);
 })();
 
+app.route('/auth', AuthRouter(pool));
 
-
-app.get('/', async (req, res) => {
-    res.send({
-        message: 'Hello world!'
+app.get('/', (c) => {
+    return c.json({
+        message: 'Hello, world!'
     });
 });
 
-app.post('/api/update-coors', async (req, res) => { 
-    const gpsData = req.body as Omit<Omit<GPS, 'id'>, 'timestamp'> & { code: string };
-    if (gpsData.code !== process.env.CODE) { 
-        res.status(403).send({
+
+app.post('/api/update-coors', async (c) => {
+    const gpsData = (await c.req.json()) as Omit<Omit<GPS, 'id'>, 'timestamp'> & { code: string };
+    if (gpsData.code !== process.env.CODE) {
+        c.json({
             message: 'Invalid code'
-        });
+        }, 403);
         return;
     }
     const lastcoords = await pool.execute(`
         SELECT * FROM gps ORDER BY id DESC LIMIT 1;
     `) as any;
     const lastcoord = lastcoords[ 0 ][ 0 ] as GPS;
-    if (!lastcoord) { 
+    if (!lastcoord) {
         await pool.execute(`
             INSERT INTO gps (latitude, longitude, speed, track, glasses_id) VALUES (?, ?, ?, ?, ?);
         `, [ gpsData.latitude, gpsData.longitude, gpsData.speed, gpsData.track, gpsData.glasses_id ]);
-        return res.send({
+        return c.json({
             message: 'OK'
-        });
+        }, 200);
     }
     const distance = Math.sqrt(Math.pow(lastcoord.latitude - gpsData.latitude, 2) + Math.pow(lastcoord.longitude - gpsData.longitude, 2));
-    if (distance > 0.0001) { 
+    if (distance > 0.0001) {
         await pool.execute(`
             INSERT INTO gps (latitude, longitude, speed, track, glasses_id) VALUES (?, ?, ?, ?, ?);
         `, [ gpsData.latitude, gpsData.longitude, gpsData.speed, gpsData.track, gpsData.glasses_id ]);
     }
-    res.send({
+    c.json({
         message: 'OK'
-    });
+    }, 200);
 })
 
-app.get('/api/get-coors', async (req, res) => { 
-    const { code } = req.query;
-    if (code !== process.env.CODE) { 
-        res.status(403).send({
+app.get('/api/get-coors', async (c) => {
+    const { code } = c.req.query() as { code: string };
+    if (code !== process.env.CODE) {
+        c.json({
             message: 'Invalid code'
-        });
+        }, 403);
         return;
     }
     const coords = await pool.execute(`
         SELECT * FROM gps ORDER BY id DESC LIMIT 1;
     `) as any;
     const coord = coords[ 0 ][ 0 ] as GPS;
-    res.send({
-        latitude: coord.latitude,
-        longitude: coord.longitude,
-        speed: coord.speed,
-        track: coord.track,
-        glasses_id: coord.glasses_id,
-    });
+    c.json(coord, 200);
 });
 
-app.listen(port, () => {
-    console.log(`Server listening on port ${port}`);
-});
+app.post('/api/add-alley', async (c) => {
+
+    const { userId, alleyEmail } = (await c.req.json()) as { userId: string, alleyEmail: string };
+
+    console.log(userId, alleyEmail);
+    const [ user ] = await pool.execute(`
+        SELECT * FROM users WHERE id = ?;
+    `, [ userId ]) as any;
+    if (!user[ 0 ]) {
+        return c.json({
+            message: 'User does not exist'
+        }, 400);
+    }
+    const [ alley ] = await pool.execute(`
+        SELECT * FROM users WHERE email = ? AND type = 'alley';
+    `, [ alleyEmail ]) as any;
+    if (!alley[ 0 ]) {
+        return c.json({
+            message: 'Alley does not exist'
+        }, 400);
+    }
+    const [ userAlley ] = await pool.execute(`
+        SELECT * FROM user_alley WHERE user_id = ? AND alley_id = ?;`, [ userId, alley[ 0 ].id ])
+    if (userAlley[ 0 ]) {
+        return c.json({
+            message: 'User already in alley'
+        }, 200);
+    }
+    console.log(alley[ 0 ].id);
+    await pool.execute(`
+        INSERT INTO user_alley (user_id, alley_id) VALUES (?, ?);
+    `, [ userId, alley[ 0 ].id ]);
+
+    return c.json({
+        message: 'OK'
+    }, 200);
+})
+app.get('/api/alleys', async (c) => {
+    const { userId } = c.req.query() as { userId: string };
+    console.log(userId);
+    const [ user ] = await pool.execute(`
+        SELECT * FROM users WHERE id = ?;
+    `, [ userId ]) as any;
+    if (!user[ 0 ]) {
+        return c.json({
+            message: 'User does not exist'
+        }, 400);
+    }
+
+    const [ users ] = await pool.execute(`
+        SELECT * FROM users WHERE type = 'user' AND id IN (SELECT user_id FROM user_alley WHERE alley_id = ?);
+    `, [ userId ]) as any;
+
+
+    return c.json(users, 200);
+})
+
+console.log(`Server running on port ${PORT} 🚀`);
+export default {
+    port: process.env.PORT || PORT,
+    fetch: app.fetch,
+}
