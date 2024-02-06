@@ -2,11 +2,20 @@ import mysql from 'mysql2/promise';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+// import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { GPS } from '../types';
 import initDB from './utils/initDB';
 import AuthRouter from './routes/auth/Auth';
 // Create an instance of Hono
 const app = new Hono();
+// const server = createServer({
+
+// });
+const io = new Server();
+
+
+
 const PORT = process.env.PORT || 3000;
 // Use middleware
 app.use('*', cors(
@@ -159,6 +168,20 @@ app.post('/api/users', async (c) => {
 
 
     return c.json(users, 200);
+
+})
+
+io.on('connection', (socket) => {
+    console.log('a user connected');
+    socket.on('disconnect', () => {
+        console.log('user disconnected');
+    });
+    socket.on('data', (data) => {
+        console.log('data', data);
+    })
+    socket.on('video', (data) => {
+        console.log('video', data);
+    })
 
 })
 
